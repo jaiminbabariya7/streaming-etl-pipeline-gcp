@@ -114,7 +114,7 @@ streaming-etl-pipeline-gcp/
 |   |-- outputs.tf
 |
 |-- tests/
-|   |-- test_transforms.py   # 10 unit tests for Beam DoFns
+|   |-- test_transforms.py   # 12 unit tests for Beam DoFns
 |   |-- test_pipeline.py     # Schema + config validation tests
 |
 |-- snapshots/
@@ -309,7 +309,7 @@ make test
 # tests/test_transforms.py::TestEnrichEvent::test_purchase_tier_added     PASSED
 # tests/test_transforms.py::TestSchemas::test_purchase_tier_boundaries    PASSED
 # tests/test_pipeline.py::TestSchemaDefinitions::test_bq_events_schema    PASSED
-# ... 14 tests total
+# ... 20 tests total
 ```
 
 ---
