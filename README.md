@@ -11,7 +11,7 @@
 ![Tests](https://img.shields.io/badge/tests-passing-brightgreen)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
-> Production-grade streaming ETL pipeline on GCP. User-activity events flow from a Kafka topic through a Kafka→Pub/Sub bridge into an Apache Beam / Cloud Dataflow pipeline that validates, enriches, windows, and dual-sinks to BigQuery (streaming inserts) and GCS (JSONL archive). Invalid records route to a Dead-Letter Queue. dbt transforms raw events into analytical mart tables. Airflow orchestrates the daily batch layer. Terraform provisions all GCP infrastructure.
+> Streaming ETL pipeline on GCP. User-activity events flow from a Kafka topic through a Kafka→Pub/Sub bridge into an Apache Beam / Cloud Dataflow pipeline that validates, enriches, windows, and dual-sinks to BigQuery (streaming inserts) and GCS (JSONL archive). Invalid records route to a Dead-Letter Queue. dbt transforms raw events into analytical mart tables. Airflow orchestrates the daily batch layer. Terraform provisions all GCP infrastructure.
 
 ---
 
