@@ -3,7 +3,8 @@ Kafka → Google Cloud Pub/Sub bridge.
 
 Consumes messages from the Kafka raw-events topic and republishes
 them to Pub/Sub, acting as the entry point into the GCP pipeline.
-Supports exactly-once semantics via Kafka consumer group offsets.
+At-least-once delivery: Kafka offsets are committed only after Pub/Sub ACKs;
+duplicates are removed downstream by event_id in the dbt staging model.
 
 Usage:
     python kafka_to_pubsub.py

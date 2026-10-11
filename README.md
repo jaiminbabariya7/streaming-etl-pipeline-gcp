@@ -48,7 +48,7 @@ Apache Kafka  [kafka/producer.py]
         v
 Kafka → Pub/Sub Bridge  [kafka/kafka_to_pubsub.py]
   Consumer group: kafka-pubsub-bridge
-  Exactly-once: commit Kafka offsets only after Pub/Sub ACK
+  At-least-once: commit Kafka offsets only after Pub/Sub ACK (duplicates removed by event_id in dbt)
         |
         v
 Google Cloud Pub/Sub
@@ -90,7 +90,7 @@ streaming-etl-pipeline-gcp/
 |-- kafka/
 |   |-- schemas.py           # UserEvent dataclass, EventType enum, BQ schemas
 |   |-- producer.py          # Synthetic event producer (50–200 events/sec)
-|   |-- kafka_to_pubsub.py   # Kafka consumer → Pub/Sub bridge (exactly-once)
+|   |-- kafka_to_pubsub.py   # Kafka consumer → Pub/Sub bridge (at-least-once)
 |
 |-- dataflow/
 |   |-- pipeline.py          # Main Beam pipeline: ingest → enrich → dual sink
@@ -150,7 +150,7 @@ Event distribution mirrors real e-commerce traffic (45% page views, 20% cart add
 ### Kafka → Pub/Sub Bridge — `kafka/kafka_to_pubsub.py`
 - Consumes from Kafka in batches of 100 messages
 - Publishes to Pub/Sub with Kafka offset metadata
-- **Exactly-once**: commits Kafka offsets only after all Pub/Sub futures succeed
+- **At-least-once delivery**: commits Kafka offsets only after all Pub/Sub futures succeed, so no event is lost; any redelivered duplicates are removed by `event_id` in `stg_events` (dbt)
 - Handles SIGTERM for zero-message-loss shutdown
 
 ### Beam Pipeline — `dataflow/pipeline.py` + `transforms.py`
