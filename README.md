@@ -93,29 +93,32 @@ streaming-etl-pipeline-gcp/
 |   |-- kafka_to_pubsub.py   # Kafka consumer → Pub/Sub bridge (at-least-once)
 |
 |-- dataflow/
-|   |-- pipeline.py          # Main Beam pipeline: ingest → enrich → dual sink
+|   |-- pipeline.py          # Main Beam pipeline: ingest → enrich → dual sink (run as python -m dataflow.pipeline)
 |   |-- transforms.py        # ParseEvent, EnrichEvent, AddWindowTimestamps DoFns
 |
 |-- dbt/
 |   |-- dbt_project.yml
+|   |-- profiles.yml.example # copy to dbt/profiles.yml
 |   |-- models/
-|   |   |-- staging/         stg_events.sql, stg_users.sql
+|   |   |-- sources.yml      raw events source + freshness (processed_at)
+|   |   |-- staging/         stg_events.sql, stg_users.sql, schema.yml (tests)
 |   |   |-- intermediate/    int_session_events.sql
-|   |   |-- mart/            fct_events.sql (incremental), dim_users.sql
-|   |-- tests/               custom dbt data-quality tests
+|   |   |-- mart/            fct_events.sql (incremental), dim_users.sql, schema.yml (tests)
+|   |-- tests/               assert_purchase_amount_positive, assert_session_duration_non_negative
 |
 |-- airflow/
 |   |-- dags/
 |       |-- streaming_pipeline_dag.py  # Dataflow health + dbt + audit
 |
 |-- terraform/
-|   |-- main.tf              # GCS, Pub/Sub, BigQuery, SA, IAM
+|   |-- main.tf              # GCS, Pub/Sub, BigQuery (events, DLQ, audit log), SA, IAM
 |   |-- variables.tf
 |   |-- outputs.tf
 |
 |-- tests/
 |   |-- test_transforms.py   # 12 unit tests for Beam DoFns
 |   |-- test_pipeline.py     # Schema + config validation tests
+|   |-- test_archive.py      # Streaming (TestStream) test of the per-window GCS archive
 |
 |-- snapshots/
 |   |-- architecture.svg     # Full pipeline architecture diagram
@@ -125,6 +128,7 @@ streaming-etl-pipeline-gcp/
 |   |-- docker-compose.yml   # Kafka + ZooKeeper + bridge + producer
 |
 |-- .env.example
+|-- setup.py             # lets Dataflow workers import dataflow/ and kafka/
 |-- requirements.txt
 |-- pyproject.toml
 |-- Makefile
@@ -164,8 +168,10 @@ Event distribution mirrors real e-commerce traffic (45% page views, 20% cart add
 
 **Sinks:**
 - BigQuery — streaming inserts (low-latency, queryable seconds after ingestion)
-- GCS — JSONL archive (cost-efficient long-term storage)
+- GCS — JSONL archive via `fileio.WriteToFiles`, one set of files per 60 s window (works on unbounded input; cost-efficient long-term storage)
 - BigQuery DLQ — all invalid records with error reason
+
+**Dataflow settings:** Streaming Engine enabled, throughput-based autoscaling from 2 to 10 workers (`--workers` / `--max_workers`), and `setup.py` ships the `dataflow/` and `kafka/` packages to the workers.
 
 ### dbt Models — `dbt/models/`
 Full layered transformation:
@@ -179,10 +185,9 @@ Full layered transformation:
 Daily orchestration at 02:00 UTC:
 1. Check if Dataflow streaming job is active (branch on result)
 2. Restart Dataflow using Flex Template if needed
-3. Run dbt staging models + tests
-4. Run dbt intermediate models
-5. Run dbt mart models + tests
-6. Write audit record to BigQuery `pipeline_audit_log`
+3. Run dbt staging models + tests (incl. source freshness checks)
+4. Run dbt mart models (the ephemeral intermediate model compiles into them) + tests
+5. Write audit record to BigQuery `pipeline_audit_log`
 
 ### Terraform — `terraform/`
 Provisions all GCP resources:
@@ -237,6 +242,8 @@ events     ──>  stg_events  ──>  int_session    ──>  fct_events  (in
 | `fct_events` | incremental table | partitioned by date, clustered, purchase enrichment |
 | `dim_users` | table | LTV tiers, engagement segments |
 
+**dbt tests:** `unique` + `not_null` on `event_id` (staging and fact) and `user_id`, `accepted_values` on event type and user tiers, a `relationships` test from `fct_events` to `dim_users`, source freshness on `processed_at` (warn after 1 h), and two singular tests (purchases must have a positive amount; session duration can't be negative). The Airflow DAG runs them after the staging and mart builds.
+
 ---
 
 ## Setup
@@ -265,19 +272,16 @@ make terraform-apply  # creates GCS, Pub/Sub, BigQuery, SA
 ## Running Locally
 
 ```bash
-# 1. Start Kafka + ZooKeeper via Docker
+# 1. Start Kafka + ZooKeeper, the event producer (20 events/sec) and the
+#    Kafka → Pub/Sub bridge in Docker
 make docker-up
+#    (or run them on the host instead: make run-producer / make run-bridge)
 
-# 2. Start event producer (50 events/sec)
-make run-producer
-
-# 3. Start Kafka → Pub/Sub bridge
-make run-bridge
-
-# 4. Run Beam pipeline locally (DirectRunner)
+# 2. Run the Beam pipeline locally (DirectRunner, reads the Pub/Sub subscription)
 make run-pipeline-local
 
-# 5. Run dbt models
+# 3. Run dbt models and tests
+cp dbt/profiles.yml.example dbt/profiles.yml
 make dbt-run && make dbt-test
 ```
 
@@ -309,7 +313,8 @@ make test
 # tests/test_transforms.py::TestEnrichEvent::test_purchase_tier_added     PASSED
 # tests/test_transforms.py::TestSchemas::test_purchase_tier_boundaries    PASSED
 # tests/test_pipeline.py::TestSchemaDefinitions::test_bq_events_schema    PASSED
-# ... 20 tests total
+# tests/test_archive.py::test_archive_writes_jsonl_per_window_on_unbounded_input PASSED
+# ... 21 tests total
 ```
 
 ---

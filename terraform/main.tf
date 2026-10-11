@@ -29,7 +29,10 @@ resource "google_storage_bucket" "pipeline_bucket" {
 
   lifecycle_rule {
     condition { age = 90 }
-    action    { type = "SetStorageClass"; storage_class = "NEARLINE" }
+    action {
+      type = "SetStorageClass"
+      storage_class = "NEARLINE"
+    }
   }
   lifecycle_rule {
     condition { age = 365 }
@@ -76,7 +79,10 @@ resource "google_bigquery_table" "events" {
   table_id            = "events"
   deletion_protection = false
 
-  time_partitioning { type = "DAY"; field = "event_ts" }
+  time_partitioning {
+    type = "DAY"
+    field = "event_ts"
+  }
   clustering = ["event_type", "country"]
 
   schema = jsonencode([
@@ -104,6 +110,18 @@ resource "google_bigquery_table" "dead_letter_queue" {
     {name="error_reason",type="STRING",mode="REQUIRED"},
     {name="topic",type="STRING",mode="NULLABLE"},
     {name="failed_at",type="TIMESTAMP",mode="REQUIRED"},
+  ])
+}
+
+resource "google_bigquery_table" "pipeline_audit_log" {
+  dataset_id          = google_bigquery_dataset.streaming_etl.dataset_id
+  table_id            = "pipeline_audit_log"
+  deletion_protection = false
+  schema = jsonencode([
+    { name = "dag_run_id", type = "STRING", mode = "REQUIRED" },
+    { name = "dag_id", type = "STRING", mode = "REQUIRED" },
+    { name = "status", type = "STRING", mode = "REQUIRED" },
+    { name = "run_at", type = "TIMESTAMP", mode = "REQUIRED" },
   ])
 }
 

@@ -28,3 +28,12 @@ service-account*.json
 # Models
 models/*.pkl
 models/*.h5
+
+# dbt
+dbt/profiles.yml
+dbt/target/
+dbt/logs/
+dbt/dbt_packages/
+# Terraform
+terraform/.terraform/
+terraform/*.tfstate*

@@ -1,0 +1,12 @@
+# Copy to dbt/profiles.yml (git-ignored) and fill in the env vars
+streaming_etl:
+  target: dev
+  outputs:
+    dev:
+      type: bigquery
+      method: service-account
+      project: "{{ env_var('GCP_PROJECT_ID') }}"
+      dataset: streaming_etl
+      keyfile: "{{ env_var('GOOGLE_APPLICATION_CREDENTIALS') }}"
+      location: "{{ env_var('BQ_LOCATION', 'us-central1') }}"
+      threads: 4

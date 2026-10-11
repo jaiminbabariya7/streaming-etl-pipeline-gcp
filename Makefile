@@ -24,10 +24,10 @@ run-bridge:
 	python kafka/kafka_to_pubsub.py
 
 run-pipeline-local:
-	python dataflow/pipeline.py --runner=DirectRunner
+	python -m dataflow.pipeline --runner=DirectRunner
 
 run-pipeline-gcp:
-	python dataflow/pipeline.py --runner=DataflowRunner
+	python -m dataflow.pipeline --runner=DataflowRunner
 
 dbt-run:
 	dbt run --project-dir dbt --profiles-dir dbt
@@ -36,7 +36,7 @@ dbt-test:
 	dbt test --project-dir dbt --profiles-dir dbt
 
 docker-up:
-	docker compose -f docker/docker-compose.yml up --build -d
+	docker compose -f docker/docker-compose.yml --env-file .env up --build -d
 
 terraform-init:
 	cd terraform && terraform init && terraform plan -var="project_id=$$GCP_PROJECT_ID"

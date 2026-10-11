@@ -1,0 +1,17 @@
+version: 2
+
+sources:
+  - name: streaming_etl
+    description: Raw events written by the Dataflow pipeline (streaming inserts)
+    schema: streaming_etl
+    tables:
+      - name: events
+        loaded_at_field: processed_at
+        freshness:
+          warn_after: {count: 1, period: hour}
+          error_after: {count: 6, period: hour}
+        columns:
+          - name: event_id
+            tests: [not_null]
+      - name: dead_letter_queue
+        description: Records that failed parsing/validation, with the error reason

@@ -92,23 +92,19 @@ with DAG(
     # 2. dbt transformations
     dbt_staging = BashOperator(
         task_id="dbt_run_staging",
-        bash_command=f"{DBT_CMD} run --select staging.*",
+        bash_command=f"{DBT_CMD} run --select staging",
     )
     dbt_staging_test = BashOperator(
         task_id="dbt_test_staging",
-        bash_command=f"{DBT_CMD} test --select staging.*",
-    )
-    dbt_intermediate = BashOperator(
-        task_id="dbt_run_intermediate",
-        bash_command=f"{DBT_CMD} run --select intermediate.*",
+        bash_command=f"{DBT_CMD} test --select staging source:streaming_etl",
     )
     dbt_mart = BashOperator(
         task_id="dbt_run_mart",
-        bash_command=f"{DBT_CMD} run --select mart.*",
+        bash_command=f"{DBT_CMD} run --select mart",   # ephemeral intermediate models compile in
     )
     dbt_mart_test = BashOperator(
         task_id="dbt_test_mart",
-        bash_command=f"{DBT_CMD} test --select mart.*",
+        bash_command=f"{DBT_CMD} test --select mart",
     )
 
     # 3. Log audit record
@@ -126,6 +122,5 @@ with DAG(
     # DAG topology
     (start >> check_df >> [df_ok, restart_df] >> rejoin
      >> dbt_staging >> dbt_staging_test
-     >> dbt_intermediate
      >> dbt_mart >> dbt_mart_test
      >> audit >> end)

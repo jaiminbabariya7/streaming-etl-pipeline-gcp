@@ -1,0 +1,28 @@
+version: 2
+
+models:
+  - name: fct_events
+    description: Incremental event fact table, partitioned by event_date, clustered by event_type + country
+    columns:
+      - name: event_id
+        tests: [unique, not_null]
+      - name: user_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_users')
+              field: user_id
+
+  - name: dim_users
+    description: User dimension with lifetime value and engagement tiers
+    columns:
+      - name: user_id
+        tests: [unique, not_null]
+      - name: user_segment
+        tests:
+          - accepted_values:
+              values: ['platinum', 'gold', 'silver', 'bronze', 'prospect']
+      - name: engagement_tier
+        tests:
+          - accepted_values:
+              values: ['power_user', 'regular', 'occasional', 'one_time']

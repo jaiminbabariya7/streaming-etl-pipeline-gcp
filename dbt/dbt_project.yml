@@ -16,6 +16,4 @@ models:
     mart:
       +materialized: table
       +schema: mart
-      +partition_by:
-        field: event_date
-        data_type: date
+      # fct_events sets its own partitioning/clustering; dim_users has no event_date

@@ -1,5 +1,8 @@
 version: "3.9"
 
+# Local Kafka + the producer and the Kafka -> Pub/Sub bridge.
+# Run from the repo root:  docker compose -f docker/docker-compose.yml --env-file .env up --build -d
+
 services:
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
@@ -14,24 +17,31 @@ services:
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      # containers use kafka:29092, the host uses localhost:9092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,PLAINTEXT_HOST://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
 
   kafka-bridge:
-    build: ..
+    build: { context: .., dockerfile: docker/Dockerfile }
     depends_on: [kafka]
-    env_file: ../.env
     environment:
-      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      GCP_PROJECT_ID: ${GCP_PROJECT_ID}
+      PUBSUB_TOPIC: ${PUBSUB_TOPIC:-raw-events}
+      GOOGLE_APPLICATION_CREDENTIALS: /app/gcp-key.json
+    volumes:
+      - ${GOOGLE_APPLICATION_CREDENTIALS}:/app/gcp-key.json:ro
     command: python kafka/kafka_to_pubsub.py
     restart: unless-stopped
 
   producer:
-    build: ..
+    build: { context: .., dockerfile: docker/Dockerfile }
     depends_on: [kafka]
-    env_file: ../.env
     environment:
-      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
     command: python kafka/producer.py --rate 20
     restart: unless-stopped

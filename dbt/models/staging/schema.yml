@@ -1,0 +1,22 @@
+version: 2
+
+models:
+  - name: stg_events
+    description: Valid events, deduplicated on event_id (removes redelivered duplicates)
+    columns:
+      - name: event_id
+        tests: [unique, not_null]
+      - name: event_type
+        tests:
+          - accepted_values:
+              values: ['PAGE_VIEW', 'ADD_TO_CART', 'PURCHASE', 'SEARCH', 'LOGIN', 'LOGOUT']
+      - name: user_id
+        tests: [not_null]
+      - name: event_ts
+        tests: [not_null]
+
+  - name: stg_users
+    description: One row per user derived from the event stream
+    columns:
+      - name: user_id
+        tests: [unique, not_null]
